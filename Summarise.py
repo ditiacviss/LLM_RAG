@@ -162,17 +162,15 @@ def main():
     role = st.text_input("Enter the hiring role: ")
 
     groq_api_key = st.text_input("GROQ_API_KEY", type='password')
-    if not groq_api_key:
-        raise RuntimeError("Missing GROQ_API_KEY in environment")
 
-    resume_text = load_resume_text(resume_path)
-    result = judge_candidates_fit(groq_api_key, role, resume_text)
-    st.write("\n📊 Result:", result)
+    if st.button('Enter') and groq_api_key and role and resume_path:
+        resume_text = load_resume_text(resume_path)
+        result = judge_candidates_fit(groq_api_key, role, resume_text)
+        st.write("\n📊 Result:", result)
 
-    st.title('Access the Skills')
-    final_result = assess_skills(groq_api_key, role, result)
-    st.write(final_result)
-
+        st.title('Access the Skills')
+        final_result = assess_skills(groq_api_key, role, result)
+        st.write(final_result)
 
 if __name__ == "__main__":
     main()
