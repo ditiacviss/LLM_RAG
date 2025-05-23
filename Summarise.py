@@ -188,14 +188,26 @@ def main():
 
     groq_api_key = st.text_input("GROQ_API_KEY", type='password')
 
-    if st.button('Enter') and groq_api_key and role and resume_path:
+    if "question" not in st.session_state:
+        st.session_state.question = ""
+    if "evaluation_result" not in st.session_state:
+        st.session_state.evaluation_result = ""
+    if "asked" not in st.session_state:
+        st.session_state.asked = False
+
+        # Step 2: Evaluate Resume
+    if st.button("Evaluate Resume") and resume_path and role and groq_api_key:
         resume_text = load_resume_text(resume_path)
-        result = judge_candidates_fit(groq_api_key, role, resume_text)
-        st.write("\n📊 Result:", result)
+        st.session_state.evaluation_result = judge_candidates_fit(groq_api_key, role, resume_text)
+        st.write("### 📊 Evaluation Result")
+        st.write(st.session_state.evaluation_result)
 
-        st.title('Access the Skills')
+        st.session_state.question = suggest_interview_question(groq_api_key, role, st.session_state.evaluation_result)
+        st.session_state.asked = True
 
-        st.write("💬 Interview Question")
+        # Step 3: Ask Interview Question
+    if st.session_state.asked and st.session_state.question:
+        st.write("### 💬 Interview Question")
         st.write(st.session_state.question)
         answer = st.text_area("✍️ Candidate's Answer")
 
