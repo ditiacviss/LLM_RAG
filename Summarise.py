@@ -94,7 +94,13 @@ import streamlit as st
 from langchain.chains import ConversationChain
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationalRetrievalChain
+from langchain_groq import ChatGroq
+from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+import os
 
 def load_resume_text(file_path):
     reader = PdfReader(file_path)
@@ -132,7 +138,26 @@ def judge_candidates_fit(groq_api_key, role, resume_text):
     return chain.run({"role": role, "resume_text": resume_text})
 
 
-def assess_skills(groq_api_key, role, previous_result):
+def suggest_interview_question(api_key, role, evaluation_summary):
+    """Generate a follow-up interview question based on candidate evaluation."""
+    llm = ChatGroq(api_key=api_key, model="llama3-70b-8192", temperature=0.2, max_tokens=1024)
+
+    prompt = f"""
+    You are a hiring assistant for a company hiring for the role of "{role}".
+    Based on the evaluation below:
+    ---
+    {evaluation_summary}
+    ---
+    Ask the next interview question, structured as:
+    - 70% technical
+    - 20% problem-solving/brain-stimulating
+    - 10% soft skills
+    Just return the next question, no explanations.
+    """
+    return llm.invoke(prompt).content
+
+
+def assess_answers_and_skills(groq_api_key, role, question, answer):
     llm = ChatGroq(
         api_key=groq_api_key,
         model="llama3-70b-8192",
@@ -142,19 +167,19 @@ def assess_skills(groq_api_key, role, previous_result):
 
     prompt_text = f"""
     You are a hiring assistant for a company, hiring for the role of "{role}".
-    Based on the evaluation below:
+    Here is the interview question asked:
     ---
-    {previous_result}
+    {question}
     ---
-    Now assess this candidate's skills by suggesting:
-    - 70% technical questions
-    - 20% brain-stimulating questions
-    - 10% soft skill questions
-
-    After the candidate answers, re-evaluate their level (Beginner, Intermediate, Advanced) and give a new fit score out of 100.
+    And here is the candidate's answer:
+    ---
+    {answer}
+    ---
+    Now assess the candidate's answering skill.
+    Re-evaluate their level (Beginner, Intermediate, or Advanced) and provide a new fit score out of 100.
     """
 
-    return llm.invoke(prompt_text)
+    return llm.invoke(prompt_text).content
 
 
 def main():
@@ -169,8 +194,23 @@ def main():
         st.write("\n📊 Result:", result)
 
         st.title('Access the Skills')
-        final_result = assess_skills(groq_api_key, role, result)
-        st.write(final_result)
+
+        st.write("💬 Interview Question")
+        st.write(st.session_state.question)
+        answer = st.text_area("✍️ Candidate's Answer")
+
+        if st.button("Assess Answer"):
+            final_result = assess_answers_and_skills(
+                groq_api_key,
+                role,
+                st.session_state.question,
+                answer
+            )
+            st.write("### 🧠 Updated Evaluation")
+            st.write(final_result)
+
 
 if __name__ == "__main__":
     main()
+
+
